@@ -235,15 +235,10 @@ export default function App() {
     printDocument();
   };
 
-  // Language switch handler: translates UI and restores localized sample data
+  // Language switch handler: translates UI to guide users; does NOT alter entered content
   const handleLanguageChange = (newLang: LanguageCode) => {
     setLang(newLang);
-    setCvData(getLocalizedCv(newLang));
-    setLetterData(getLocalizedLetter(newLang));
-    setCensusData(getLocalizedCensus(newLang));
-    setReceiptData(getLocalizedReceipt(newLang));
-    setCertificateData(getLocalizedCertificate(newLang));
-    showToast(`Language switched to ${LANGUAGES[newLang].name}`);
+    showToast(`Language: ${LANGUAGES[newLang].name}`);
   };
 
   // Reset to sample data in active language

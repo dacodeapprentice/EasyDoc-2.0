@@ -16,21 +16,55 @@ export function printDocument(): void {
   }
 }
 
+/**
+ * Converts the vector DOM document into a high-resolution pixelated raster PDF file
+ * and triggers immediate download.
+ */
 export async function exportToPdf(elementId: string, filename: string): Promise<boolean> {
   const source = document.getElementById(elementId);
   if (!source) {
-    printDocument();
-    return true;
+    console.error(`Target document element #${elementId} not found.`);
+    return false;
   }
 
+  // Check if source is currently in a display:none container (e.g. mobile editor view)
+  const isHidden = source.offsetParent === null || source.offsetWidth === 0;
+
+  let targetElement: HTMLElement = source;
+  let tempContainer: HTMLElement | null = null;
   const scaleWrapper = document.getElementById('document-scale-wrapper');
   const prevTransform = scaleWrapper ? scaleWrapper.style.transform : '';
   const prevTransition = scaleWrapper ? scaleWrapper.style.transition : '';
 
-  // Temporarily reset scale to 1.0 for 1:1 crisp capture
-  if (scaleWrapper) {
-    scaleWrapper.style.transform = 'none';
-    scaleWrapper.style.transition = 'none';
+  if (isHidden) {
+    // If hidden on mobile, render an exact 1:1 container at (0, 0) behind viewport
+    tempContainer = document.createElement('div');
+    tempContainer.style.cssText = `
+      position: fixed !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 794px !important;
+      z-index: -99999 !important;
+      background-color: #ffffff !important;
+      pointer-events: none !important;
+      overflow: visible !important;
+    `;
+    const clone = source.cloneNode(true) as HTMLElement;
+    clone.style.width = '794px';
+    clone.style.minWidth = '794px';
+    clone.style.maxWidth = '794px';
+    clone.style.transform = 'none';
+    clone.style.backgroundColor = '#ffffff';
+    clone.style.display = 'block';
+    tempContainer.appendChild(clone);
+    document.body.appendChild(tempContainer);
+    targetElement = clone;
+  } else {
+    // Source is on screen: unscale wrapper for high-res 1:1 pixelated capture
+    if (scaleWrapper) {
+      scaleWrapper.style.transform = 'none';
+      scaleWrapper.style.transition = 'none';
+    }
   }
 
   try {
@@ -38,20 +72,28 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
       await document.fonts.ready;
     }
 
-    const canvas = await html2canvas(source, {
-      scale: 2.0, // High-DPI for crisp text and graphics
+    // Convert vector DOM into a crisp high-resolution pixelated raster canvas (2x density)
+    const canvas = await html2canvas(targetElement, {
+      scale: 2.0, // 2x high-resolution pixel density (1588px wide for 794px A4)
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
+      imageTimeout: 15000,
     });
 
-    if (scaleWrapper) {
+    // Cleanup temporary offscreen container or restore scale
+    if (tempContainer && tempContainer.parentNode) {
+      document.body.removeChild(tempContainer);
+    }
+    if (scaleWrapper && !isHidden) {
       scaleWrapper.style.transform = prevTransform;
       scaleWrapper.style.transition = prevTransition;
     }
 
+    // Convert high-resolution pixelated canvas into JPEG image data
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
+
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -66,11 +108,11 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
     let heightLeft = imgHeight;
     let position = 0;
 
-    // First page
+    // First page: render high-resolution pixelated result
     pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight, undefined, 'FAST');
     heightLeft -= pdfHeight;
 
-    // Multi-page pagination
+    // Multi-page pagination if content exceeds 1 page
     while (heightLeft > 5) {
       position = heightLeft - imgHeight;
       pdf.addPage();
@@ -80,7 +122,7 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
 
     const safeFilename = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
 
-    // Download method: direct Blob URL anchor click with pdf.save fallback
+    // Download via direct Blob URL link
     let downloaded = false;
     try {
       const pdfBlob = pdf.output('blob');
@@ -101,7 +143,7 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
         URL.revokeObjectURL(blobUrl);
       }, 2500);
     } catch {
-      // Fallback
+      // Fallback to pdf.save
     }
 
     if (!downloaded) {
@@ -110,12 +152,14 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
 
     return true;
   } catch (error) {
-    console.warn('Canvas export failed, using instant vector print fallback:', error);
-    if (scaleWrapper) {
+    console.error('High-resolution pixelated PDF generation error:', error);
+    if (tempContainer && tempContainer.parentNode) {
+      document.body.removeChild(tempContainer);
+    }
+    if (scaleWrapper && !isHidden) {
       scaleWrapper.style.transform = prevTransform;
       scaleWrapper.style.transition = prevTransition;
     }
-    printDocument();
-    return true;
+    return false;
   }
 }
