@@ -1,0 +1,6 @@
+{
+  "name": "EasyDoc - Modern Document Generator",
+  "description": "Effortlessly design and generate professionally styled CVs, presentation letters, census records, and receipts with elegant typography and instant PDF export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
