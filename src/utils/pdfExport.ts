@@ -28,8 +28,9 @@ function convertColorToRgba(colorStr: string): string {
 
 function sanitizeOklchInString(val: string): string {
   if (!val || typeof val !== 'string' || (!val.includes('oklch') && !val.includes('oklab'))) return val;
-  return val.replace(/oklch\([^)]+\)/gi, (match) => convertColorToRgba(match))
-            .replace(/oklab\([^)]+\)/gi, (match) => convertColorToRgba(match));
+  return val
+    .replace(/oklch\([^)]+\)/gi, (match) => convertColorToRgba(match))
+    .replace(/oklab\([^)]+\)/gi, (match) => convertColorToRgba(match));
 }
 
 export async function exportToPdf(elementId: string, filename: string): Promise<boolean> {
@@ -39,13 +40,13 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
     return false;
   }
 
-  // 1. Create a dedicated off-screen clone positioned at (0, 0) in viewport coords
-  // so html2canvas never suffers from off-screen negative coordinate clipping
+  // 1. Create a dedicated off-screen clone with exact locked A4 dimensions
+  // Crucial: Use opacity: 1 and position: absolute with left: -10000px so browsers render all layers
   const clone = source.cloneNode(true) as HTMLElement;
   clone.id = 'document-canvas-pdf-clone';
   clone.style.cssText = `
-    position: fixed !important;
-    left: 0 !important;
+    position: absolute !important;
+    left: -10000px !important;
     top: 0 !important;
     width: 794px !important;
     min-width: 794px !important;
@@ -54,10 +55,11 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
     transform: none !important;
     box-shadow: none !important;
     background-color: #ffffff !important;
-    box-sizing: border-box !important;
-    z-index: -99999 !important;
-    opacity: 0.02 !important;
+    opacity: 1 !important;
     pointer-events: none !important;
+    z-index: -1 !important;
+    display: block !important;
+    box-sizing: border-box !important;
   `;
 
   document.body.appendChild(clone);
@@ -76,17 +78,17 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
         return new Promise((resolve) => {
           img.onload = () => resolve(true);
           img.onerror = () => resolve(false);
-          setTimeout(() => resolve(false), 2000);
+          setTimeout(() => resolve(false), 2500);
         });
       })
     );
 
-    // Allow browser one animation frame to render layout
+    // Allow browser one animation frame to compute layout
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
     const cloneHeight = Math.max(clone.scrollHeight, 1123);
 
-    // Pre-sanitize all inline and computed styles on the clone before html2canvas
+    // 3. Pre-sanitize all colors on every element in the clone
     const allElements = [clone, ...Array.from(clone.querySelectorAll('*'))] as HTMLElement[];
     const targetProperties = [
       'color',
@@ -97,6 +99,7 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
       'borderLeftColor',
       'borderRightColor',
       'outlineColor',
+      'boxShadow',
     ];
 
     allElements.forEach((el) => {
@@ -106,33 +109,49 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
         targetProperties.forEach((prop) => {
           const val = (computed as any)[prop];
           if (val && typeof val === 'string' && (val.includes('oklch') || val.includes('oklab'))) {
-            el.style.setProperty(
-              prop.replace(/([A-Z])/g, '-$1').toLowerCase(),
-              convertColorToRgba(val),
-              'important'
-            );
+            const kebab = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+            el.style.setProperty(kebab, sanitizeOklchInString(val), 'important');
           }
         });
+
+        // Also check SVG fill and stroke
+        const fill = computed.getPropertyValue('fill');
+        if (fill && (fill.includes('oklch') || fill.includes('oklab'))) {
+          el.style.setProperty('fill', sanitizeOklchInString(fill), 'important');
+        }
+        const stroke = computed.getPropertyValue('stroke');
+        if (stroke && (stroke.includes('oklch') || stroke.includes('oklab'))) {
+          el.style.setProperty('stroke', sanitizeOklchInString(stroke), 'important');
+        }
       } catch {
-        // Ignore
+        // Ignore detached nodes
       }
     });
 
-    // 3. High-resolution capture at exact 794px A4 width
+    // 4. High-resolution capture at exact 794px A4 width
     const canvas = await html2canvas(clone, {
-      scale: 2.0, // High-DPI for sharp, clear text and images
+      scale: 2.0, // High-DPI for crisp text and graphics
       useCORS: true,
       allowTaint: true,
       logging: false,
       backgroundColor: '#ffffff',
-      x: 0,
-      y: 0,
       width: 794,
       height: cloneHeight,
       windowWidth: 794,
       windowHeight: cloneHeight,
-      imageTimeout: 10000,
+      imageTimeout: 15000,
       onclone: (clonedDoc: Document, clonedEl: HTMLElement) => {
+        // In clonedDoc, reset position to standard flow so canvas renders from (0,0)
+        clonedEl.style.position = 'static';
+        clonedEl.style.left = 'auto';
+        clonedEl.style.top = 'auto';
+        clonedEl.style.transform = 'none';
+        clonedEl.style.width = '794px';
+        clonedEl.style.maxWidth = '794px';
+        clonedEl.style.minWidth = '794px';
+        clonedEl.style.opacity = '1';
+        clonedEl.style.backgroundColor = '#ffffff';
+
         // Sanitize styles in cloned document
         const styleTags = clonedDoc.querySelectorAll('style');
         styleTags.forEach((tag) => {
@@ -141,14 +160,7 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
           }
         });
 
-        clonedEl.style.transform = 'none';
-        clonedEl.style.backgroundColor = '#ffffff';
-        clonedEl.style.width = '794px';
-        clonedEl.style.maxWidth = '794px';
-        clonedEl.style.minWidth = '794px';
-        clonedEl.style.opacity = '1';
-
-        // Preserve cloned images
+        // Ensure all cloned images are visible and CORS-enabled
         const clonedImgs = clonedEl.querySelectorAll('img');
         clonedImgs.forEach((clonedImg) => {
           clonedImg.crossOrigin = 'anonymous';
@@ -158,12 +170,12 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
       },
     });
 
-    // 4. Remove temporary clone from DOM
+    // 5. Remove temporary clone from DOM
     if (clone.parentNode) {
       clone.parentNode.removeChild(clone);
     }
 
-    // 5. Build PDF with precise A4 multi-page math
+    // 6. Build PDF with precise A4 multi-page math
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -183,8 +195,8 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
     pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight, undefined, 'FAST');
     heightLeft -= pdfHeight;
 
-    // Multi-page pagination: only if content exceeds 1 full page by more than 8mm margin
-    while (heightLeft > 8) {
+    // Multi-page pagination: only if content exceeds 1 full page by more than 5mm margin
+    while (heightLeft > 5) {
       position = heightLeft - imgHeight; // Correct continuous offset
       pdf.addPage();
       pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight, undefined, 'FAST');
@@ -193,31 +205,37 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
 
     const safeFilename = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
 
-    // Download method: Create a Blob URL and trigger link download directly
+    // 7. Reliable Download: Try direct Blob URL download and keep pdf.save as fallback
+    let downloaded = false;
     try {
       const pdfBlob = pdf.output('blob');
       const blobUrl = URL.createObjectURL(pdfBlob);
       const downloadAnchor = document.createElement('a');
       downloadAnchor.href = blobUrl;
       downloadAnchor.download = safeFilename;
+      downloadAnchor.rel = 'noopener';
       downloadAnchor.style.display = 'none';
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
+      downloaded = true;
 
       setTimeout(() => {
         if (downloadAnchor.parentNode) {
-          downloadAnchor.parentNode.removeChild(downloadAnchor);
+          document.body.removeChild(downloadAnchor);
         }
         URL.revokeObjectURL(blobUrl);
-      }, 2000);
-    } catch {
-      // Fallback
+      }, 3000);
+    } catch (blobErr) {
+      console.warn('Anchor blob download failed, falling back to pdf.save:', blobErr);
+    }
+
+    if (!downloaded) {
       pdf.save(safeFilename);
     }
 
     return true;
   } catch (error) {
-    console.error('Failed to generate PDF document:', error);
+    console.error('PDF export failed:', error);
     if (clone.parentNode) {
       clone.parentNode.removeChild(clone);
     }

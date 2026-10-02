@@ -32,25 +32,25 @@ export const Navbar: React.FC<NavbarProps> = ({
   const t = (key: string) => getTranslation(currentLang, key);
 
   return (
-    <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-40 px-4 sm:px-6 py-2.5 transition-colors">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+    <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-40 px-3 sm:px-4 lg:px-6 py-2 transition-colors w-full max-w-full overflow-hidden">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4 min-w-0">
         {/* Zone 1: Brand Wordmark */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <a
             href="/"
-            className="font-sans-title text-base sm:text-lg font-bold tracking-tight text-slate-900 flex items-center gap-2 hover:opacity-90 transition-opacity"
+            className="font-sans-title text-sm sm:text-base font-bold tracking-tight text-slate-900 flex items-center gap-2 hover:opacity-90 transition-opacity"
           >
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
             <span>EasyDoc</span>
           </a>
         </div>
 
-        {/* Zone 2: Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-6 text-xs font-semibold text-slate-600">
+        {/* Zone 2: Navigation Links (visible on xl screens, scrollable) */}
+        <nav className="hidden xl:flex items-center gap-2 2xl:gap-5 text-xs font-semibold text-slate-600 shrink min-w-0 overflow-x-auto py-0.5 custom-scrollbar">
           <button
             type="button"
             onClick={() => onSelectType('cv')}
-            className={`transition-colors hover:text-slate-900 whitespace-nowrap pb-0.5 ${
+            className={`transition-colors hover:text-slate-900 whitespace-nowrap pb-0.5 px-1.5 ${
               currentType === 'cv' ? 'text-emerald-700 border-b-2 border-emerald-600' : ''
             }`}
           >
@@ -59,7 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => onSelectType('letter')}
-            className={`transition-colors hover:text-slate-900 whitespace-nowrap pb-0.5 ${
+            className={`transition-colors hover:text-slate-900 whitespace-nowrap pb-0.5 px-1.5 ${
               currentType === 'letter' ? 'text-emerald-700 border-b-2 border-emerald-600' : ''
             }`}
           >
@@ -68,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => onSelectType('census')}
-            className={`transition-colors hover:text-slate-900 whitespace-nowrap pb-0.5 ${
+            className={`transition-colors hover:text-slate-900 whitespace-nowrap pb-0.5 px-1.5 ${
               currentType === 'census' ? 'text-emerald-700 border-b-2 border-emerald-600' : ''
             }`}
           >
@@ -77,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => onSelectType('receipt')}
-            className={`transition-colors hover:text-slate-900 whitespace-nowrap pb-0.5 ${
+            className={`transition-colors hover:text-slate-900 whitespace-nowrap pb-0.5 px-1.5 ${
               currentType === 'receipt' ? 'text-emerald-700 border-b-2 border-emerald-600' : ''
             }`}
           >
@@ -86,7 +86,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => onSelectType('certificate')}
-            className={`transition-colors hover:text-slate-900 whitespace-nowrap pb-0.5 ${
+            className={`transition-colors hover:text-slate-900 whitespace-nowrap pb-0.5 px-1.5 ${
               currentType === 'certificate' ? 'text-emerald-700 border-b-2 border-emerald-600' : ''
             }`}
           >
@@ -95,9 +95,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Zone 3: Primary Actions & i18n */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 max-w-full">
           {/* Language Switcher */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => setIsLangOpen(!isLangOpen)}
@@ -138,47 +138,47 @@ export const Navbar: React.FC<NavbarProps> = ({
             type="button"
             onClick={onSaveProgress}
             title={t('save_progress')}
-            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors whitespace-nowrap"
+            className="hidden sm:inline-flex items-center gap-1.5 p-1.5 2xl:px-2.5 2xl:py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors whitespace-nowrap shrink-0"
           >
             <Save className="w-3.5 h-3.5 text-slate-600" />
-            <span className="hidden xl:inline">{t('save_progress')}</span>
+            <span className="hidden 2xl:inline">{t('save_progress')}</span>
           </button>
 
           <button
             type="button"
             onClick={onLoadProgress}
             title={t('load_progress')}
-            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors whitespace-nowrap"
+            className="hidden sm:inline-flex items-center gap-1.5 p-1.5 2xl:px-2.5 2xl:py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors whitespace-nowrap shrink-0"
           >
             <FolderOpen className="w-3.5 h-3.5 text-slate-600" />
-            <span className="hidden xl:inline">{t('load_progress')}</span>
+            <span className="hidden 2xl:inline">{t('load_progress')}</span>
           </button>
 
           <button
             type="button"
             onClick={onResetData}
             title="Reload preset realistic example data"
-            className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors whitespace-nowrap"
+            className="hidden md:inline-flex items-center gap-1.5 p-1.5 2xl:px-2.5 2xl:py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors whitespace-nowrap shrink-0"
           >
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>{t('preset_data')}</span>
+            <span className="hidden 2xl:inline">{t('preset_data')}</span>
           </button>
 
           <button
             type="button"
             onClick={onPrint}
             title="Instant High-Resolution Browser Vector Print / Save PDF"
-            className="inline-flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-3 sm:py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md transition-colors whitespace-nowrap shrink-0"
           >
             <Printer className="w-3.5 h-3.5 text-slate-600" />
-            <span className="hidden sm:inline">{t('print_vector')}</span>
+            <span className="hidden lg:inline">{t('print_vector')}</span>
           </button>
 
           <button
             type="button"
             onClick={onDownloadPdf}
             disabled={isGeneratingPdf}
-            className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-60 rounded-md transition-all shadow-xs whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-60 rounded-md transition-all shadow-xs whitespace-nowrap shrink-0"
           >
             {isGeneratingPdf ? (
               <>

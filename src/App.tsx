@@ -221,10 +221,11 @@ export default function App() {
       if (success) {
         showToast(`Document downloaded: ${filename}`);
       } else {
-        showToast('PDF export completed. You can also use "Print / Vector PDF".');
+        showToast('PDF generation failed. Please try "Print / Vector PDF" instead.');
       }
-    } catch {
-      showToast('Error generating PDF. Please use the Print / Vector PDF option.');
+    } catch (err) {
+      console.error('PDF export error:', err);
+      showToast('PDF generation failed. Please try "Print / Vector PDF" instead.');
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -388,8 +389,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* Mobile Document Selector Bar */}
-      <div className="lg:hidden no-print bg-slate-50 border-b border-slate-200 px-3 py-1.5 overflow-x-auto flex items-center gap-1.5 custom-scrollbar w-full max-w-full">
+      {/* Mobile & Medium Screen Document Selector Bar (< xl) */}
+      <div className="xl:hidden no-print bg-slate-50 border-b border-slate-200 px-3 py-1.5 overflow-x-auto flex items-center gap-1.5 custom-scrollbar w-full max-w-full">
         {(['cv', 'letter', 'census', 'receipt', 'certificate'] as DocumentType[]).map((type) => (
           <button
             key={type}
@@ -538,9 +539,7 @@ export default function App() {
         {/* RIGHT PANEL: Live Document Canvas & Zoom Controls */}
         <section
           className={`flex-1 flex flex-col min-h-0 bg-slate-200/70 overflow-hidden ${
-            mobileView === 'editor'
-              ? 'max-lg:fixed max-lg:-left-[99999px] max-lg:top-0 max-lg:w-[794px] max-lg:opacity-0 max-lg:pointer-events-none lg:flex'
-              : 'flex'
+            mobileView === 'editor' ? 'hidden lg:flex' : 'flex'
           }`}
         >
           {/* Canvas Sub-Header & Zoom Bar */}
@@ -613,7 +612,7 @@ export default function App() {
           {/* Document Stage (Centering & Scaling Area) */}
           <div
             ref={documentWrapperRef}
-            className="flex-1 overflow-auto p-2 sm:p-6 lg:p-8 flex justify-center items-start custom-scrollbar w-full max-w-full"
+            className="flex-1 overflow-x-auto overflow-y-auto p-2 sm:p-6 lg:p-8 flex justify-center items-start custom-scrollbar w-full max-w-full"
           >
             {/* Outer container matching exact scaled width so it NEVER overflows the device screen */}
             <div
@@ -631,7 +630,7 @@ export default function App() {
                   minWidth: '794px',
                   maxWidth: '794px',
                   transform: `scale(${zoomLevel})`,
-                  transformOrigin: 'top left',
+                  transformOrigin: 'top center',
                   transition: 'transform 0.15s ease-out',
                 }}
                 className="doc-page-shadow rounded-sm print-canvas bg-white shrink-0"
