@@ -28,11 +28,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentLang,
   onChangeLang,
 }) => {
-  const [isLangOpen, setIsLangOpen] = useState(false);
   const t = (key: string) => getTranslation(currentLang, key);
 
   return (
-    <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-40 px-3 sm:px-4 lg:px-6 py-2 transition-colors w-full max-w-full overflow-hidden">
+    <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-40 px-3 sm:px-4 lg:px-6 py-2 transition-colors w-full max-w-full">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4 min-w-0">
         {/* Zone 1: Brand Wordmark */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -96,41 +95,21 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Zone 3: Primary Actions & i18n */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 max-w-full">
-          {/* Language Switcher */}
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => setIsLangOpen(!isLangOpen)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+          {/* Language Switcher - Native selector that always works without clipping */}
+          <div className="relative shrink-0 flex items-center">
+            <select
+              value={currentLang}
+              onChange={(e) => onChangeLang(e.target.value as LanguageCode)}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold py-1.5 px-2 rounded-md border border-slate-200 cursor-pointer outline-none transition-colors"
               title="Change Language"
+              aria-label="Change Language"
             >
-              <span>{LANGUAGES[currentLang].flag}</span>
-              <span className="uppercase text-[10px] sm:text-[11px] font-bold">{currentLang}</span>
-            </button>
-
-            {isLangOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-36 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50 animate-in fade-in zoom-in-95">
-                {(Object.keys(LANGUAGES) as LanguageCode[]).map((code) => (
-                  <button
-                    key={code}
-                    type="button"
-                    onClick={() => {
-                      onChangeLang(code);
-                      setIsLangOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-left hover:bg-slate-50 transition-colors ${
-                      currentLang === code ? 'font-bold text-emerald-700 bg-emerald-50/50' : 'text-slate-700'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span>{LANGUAGES[code].flag}</span>
-                      <span>{LANGUAGES[code].name}</span>
-                    </span>
-                    {currentLang === code && <span className="text-emerald-600">✓</span>}
-                  </button>
-                ))}
-              </div>
-            )}
+              {(Object.keys(LANGUAGES) as LanguageCode[]).map((code) => (
+                <option key={code} value={code} className="text-slate-900 bg-white">
+                  {LANGUAGES[code].flag} {LANGUAGES[code].name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Save & Load Progress Buttons */}
