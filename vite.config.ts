@@ -1,12 +1,28 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, Plugin} from 'vite';
+
+function html2canvasOklchPlugin(): Plugin {
+  return {
+    name: 'html2canvas-oklch-fix',
+    enforce: 'pre',
+    transform(code: string, id: string) {
+      if (id.includes('html2canvas')) {
+        return code.replace(
+          /throw new Error\s*\(\s*["']Attempting to parse an unsupported color function[^"']*["']\s*\);?/g,
+          'return 0x0f172aff;'
+        );
+      }
+      return null;
+    },
+  };
+}
 
 export default defineConfig(() => {
   return {
     base: './',
-    plugins: [react(), tailwindcss()],
+    plugins: [html2canvasOklchPlugin(), react(), tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

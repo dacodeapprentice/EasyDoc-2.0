@@ -195,8 +195,8 @@ export default function App() {
   // 3. Dynamic Fit to Screen calculation
   const handleFitToScreen = useCallback(() => {
     if (!documentWrapperRef.current) return;
-    const availableWidth = documentWrapperRef.current.clientWidth - 48; // padding
-    const fitScale = Math.min(1.2, Math.max(0.4, Number((availableWidth / 794).toFixed(2))));
+    const availableWidth = documentWrapperRef.current.clientWidth - 24;
+    const fitScale = Math.min(1.15, Math.max(0.32, Number((availableWidth / 794).toFixed(2))));
     setZoomLevel(fitScale);
   }, []);
 
@@ -219,7 +219,7 @@ export default function App() {
     try {
       const success = await exportToPdf('document-canvas', filename);
       if (success) {
-        showToast(`Document exported successfully as ${filename}`);
+        showToast(`Document downloaded: ${filename}`);
       } else {
         showToast('PDF export completed. You can also use "Print / Vector PDF".');
       }
@@ -289,18 +289,39 @@ export default function App() {
     }
   };
 
-  // Auto-fit zoom on mobile preview
+  // Auto-fit zoom on mount, window resize, and when entering mobile preview
   useEffect(() => {
-    if (mobileView === 'preview' && typeof window !== 'undefined' && window.innerWidth < 850) {
-      const fit = Math.min(1.0, Math.max(0.35, Number(((window.innerWidth - 32) / 794).toFixed(2))));
-      setZoomLevel(fit);
+    const updateFit = () => {
+      if (typeof window !== 'undefined') {
+        const screenW = window.innerWidth;
+        if (screenW < 900) {
+          const available = screenW - 32;
+          const fitScale = Math.min(1.0, Math.max(0.32, Number((available / 794).toFixed(2))));
+          setZoomLevel(fitScale);
+        } else {
+          setZoomLevel(0.95);
+        }
+      }
+    };
+    updateFit();
+    window.addEventListener('resize', updateFit);
+    return () => window.removeEventListener('resize', updateFit);
+  }, []);
+
+  useEffect(() => {
+    if (mobileView === 'preview' && typeof window !== 'undefined') {
+      const available = window.innerWidth - 32;
+      if (available < 794) {
+        const fit = Math.min(1.0, Math.max(0.32, Number((available / 794).toFixed(2))));
+        setZoomLevel(fit);
+      }
     }
   }, [mobileView]);
 
   const currentTheme = COLOR_THEMES[style.themeId] || COLOR_THEMES['slate-emerald'];
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans-title">
+    <div className="min-h-screen bg-slate-100 flex flex-col font-sans-title w-full max-w-full overflow-x-hidden">
       {/* PDF Export Overlay Modal */}
       {isGeneratingPdf && (
         <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center">
@@ -338,7 +359,7 @@ export default function App() {
       )}
 
       {/* Mobile View Toggle Bar */}
-      <div className="lg:hidden no-print bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between">
+      <div className="lg:hidden no-print bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between w-full max-w-full">
         <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-md w-full">
           <button
             type="button"
@@ -368,7 +389,7 @@ export default function App() {
       </div>
 
       {/* Mobile Document Selector Bar */}
-      <div className="lg:hidden no-print bg-slate-50 border-b border-slate-200 px-3 py-1.5 overflow-x-auto flex items-center gap-1.5 custom-scrollbar">
+      <div className="lg:hidden no-print bg-slate-50 border-b border-slate-200 px-3 py-1.5 overflow-x-auto flex items-center gap-1.5 custom-scrollbar w-full max-w-full">
         {(['cv', 'letter', 'census', 'receipt', 'certificate'] as DocumentType[]).map((type) => (
           <button
             key={type}
@@ -399,11 +420,11 @@ export default function App() {
       </div>
 
       {/* Main Workspace Layout */}
-      <main className="flex-1 flex overflow-hidden min-h-0">
+      <main className="flex-1 flex overflow-hidden min-h-0 w-full max-w-full">
         {/* LEFT PANEL: Form Editor & Controls */}
         <aside
-          className={`no-print w-full lg:w-[480px] xl:w-[520px] bg-white border-r border-slate-200 flex flex-col shrink-0 min-h-0 flex-1 transition-all ${
-            mobileView === 'preview' ? 'hidden lg:flex' : 'flex'
+          className={`no-print w-full lg:w-[460px] xl:w-[500px] lg:flex-none bg-white border-r border-slate-200 flex flex-col shrink-0 min-h-0 transition-all ${
+            mobileView === 'preview' ? 'max-lg:hidden lg:flex' : 'flex'
           }`}
         >
           {/* Sidebar Tab Header */}
@@ -517,7 +538,9 @@ export default function App() {
         {/* RIGHT PANEL: Live Document Canvas & Zoom Controls */}
         <section
           className={`flex-1 flex flex-col min-h-0 bg-slate-200/70 overflow-hidden ${
-            mobileView === 'editor' ? 'hidden lg:flex' : 'flex'
+            mobileView === 'editor'
+              ? 'max-lg:fixed max-lg:-left-[99999px] max-lg:top-0 max-lg:w-[794px] max-lg:opacity-0 max-lg:pointer-events-none lg:flex'
+              : 'flex'
           }`}
         >
           {/* Canvas Sub-Header & Zoom Bar */}
@@ -548,7 +571,7 @@ export default function App() {
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => setZoomLevel((z) => Math.max(0.4, Number((z - 0.1).toFixed(2))))}
+                onClick={() => setZoomLevel((z) => Math.max(0.35, Number((z - 0.1).toFixed(2))))}
                 className="p-1.5 text-slate-600 hover:text-slate-900 rounded hover:bg-slate-100"
                 title="Zoom Out"
                 aria-label="Zoom Out"
@@ -560,7 +583,7 @@ export default function App() {
               </span>
               <button
                 type="button"
-                onClick={() => setZoomLevel((z) => Math.min(1.4, Number((z + 0.1).toFixed(2))))}
+                onClick={() => setZoomLevel((z) => Math.min(1.3, Number((z + 0.1).toFixed(2))))}
                 className="p-1.5 text-slate-600 hover:text-slate-900 rounded hover:bg-slate-100"
                 title="Zoom In"
                 aria-label="Zoom In"
@@ -590,38 +613,49 @@ export default function App() {
           {/* Document Stage (Centering & Scaling Area) */}
           <div
             ref={documentWrapperRef}
-            className="flex-1 overflow-auto p-4 sm:p-8 flex justify-center items-start custom-scrollbar"
+            className="flex-1 overflow-auto p-2 sm:p-6 lg:p-8 flex justify-center items-start custom-scrollbar w-full max-w-full"
           >
+            {/* Outer container matching exact scaled width so it NEVER overflows the device screen */}
             <div
-              id="document-scale-wrapper"
               style={{
-                transform: `scale(${zoomLevel})`,
-                transformOrigin: 'top center',
-                transition: 'transform 0.15s ease-out',
-                width: 'min(794px, 100%)',
-                maxWidth: '794px',
+                width: `${Math.round(794 * zoomLevel)}px`,
+                maxWidth: '100%',
+                overflow: 'visible',
               }}
-              className="doc-page-shadow rounded-sm my-2 max-w-full print-canvas bg-white"
+              className="my-2 transition-all flex justify-center shrink-0"
             >
-              {/* Single dedicated DOM ID for PDF export and vector print */}
-              <div id="document-canvas" className="w-full bg-white">
-                <DocumentErrorBoundary onReset={handleResetData}>
-                  {docType === 'cv' && (
-                    <CvDocument data={cvData} style={style} theme={currentTheme} lang={lang} />
-                  )}
-                  {docType === 'letter' && (
-                    <LetterDocument data={letterData} style={style} theme={currentTheme} lang={lang} />
-                  )}
-                  {docType === 'census' && (
-                    <CensusDocument data={censusData} style={style} theme={currentTheme} lang={lang} />
-                  )}
-                  {docType === 'receipt' && (
-                    <ReceiptDocument data={receiptData} style={style} theme={currentTheme} lang={lang} />
-                  )}
-                  {docType === 'certificate' && (
-                    <CertificateDocument data={certificateData} style={style} theme={currentTheme} lang={lang} />
-                  )}
-                </DocumentErrorBoundary>
+              <div
+                id="document-scale-wrapper"
+                style={{
+                  width: '794px',
+                  minWidth: '794px',
+                  maxWidth: '794px',
+                  transform: `scale(${zoomLevel})`,
+                  transformOrigin: 'top left',
+                  transition: 'transform 0.15s ease-out',
+                }}
+                className="doc-page-shadow rounded-sm print-canvas bg-white shrink-0"
+              >
+                {/* Single dedicated DOM ID for PDF export and vector print */}
+                <div id="document-canvas" className="w-[794px] min-w-[794px] max-w-[794px] bg-white">
+                  <DocumentErrorBoundary onReset={handleResetData}>
+                    {docType === 'cv' && (
+                      <CvDocument data={cvData} style={style} theme={currentTheme} lang={lang} />
+                    )}
+                    {docType === 'letter' && (
+                      <LetterDocument data={letterData} style={style} theme={currentTheme} lang={lang} />
+                    )}
+                    {docType === 'census' && (
+                      <CensusDocument data={censusData} style={style} theme={currentTheme} lang={lang} />
+                    )}
+                    {docType === 'receipt' && (
+                      <ReceiptDocument data={receiptData} style={style} theme={currentTheme} lang={lang} />
+                    )}
+                    {docType === 'certificate' && (
+                      <CertificateDocument data={certificateData} style={style} theme={currentTheme} lang={lang} />
+                    )}
+                  </DocumentErrorBoundary>
+                </div>
               </div>
             </div>
           </div>

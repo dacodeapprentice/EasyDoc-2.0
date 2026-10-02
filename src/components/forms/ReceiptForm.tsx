@@ -351,7 +351,7 @@ export const ReceiptForm: React.FC<ReceiptFormProps> = ({ data, onChange, lang =
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div>
                       <label className="block text-[11px] text-slate-600 mb-0.5">
                         {t('quantity')}

@@ -95,17 +95,17 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Zone 3: Primary Actions & i18n */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Language Switcher */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setIsLangOpen(!isLangOpen)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
               title="Change Language"
             >
               <span>{LANGUAGES[currentLang].flag}</span>
-              <span className="uppercase text-[11px] font-bold">{currentLang}</span>
+              <span className="uppercase text-[10px] sm:text-[11px] font-bold">{currentLang}</span>
             </button>
 
             {isLangOpen && (
@@ -168,28 +168,29 @@ export const Navbar: React.FC<NavbarProps> = ({
             type="button"
             onClick={onPrint}
             title="Instant High-Resolution Browser Vector Print / Save PDF"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-3 sm:py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md transition-colors whitespace-nowrap"
           >
             <Printer className="w-3.5 h-3.5 text-slate-600" />
             <span className="hidden sm:inline">{t('print_vector')}</span>
-            <span className="sm:hidden">Print</span>
           </button>
 
           <button
             type="button"
             onClick={onDownloadPdf}
             disabled={isGeneratingPdf}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-60 rounded-md transition-all shadow-xs whitespace-nowrap"
+            className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-60 rounded-md transition-all shadow-xs whitespace-nowrap"
           >
             {isGeneratingPdf ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>{t('exporting')}</span>
+                <span className="hidden sm:inline">{t('exporting')}</span>
+                <span className="sm:hidden">...</span>
               </>
             ) : (
               <>
                 <Download className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{t('download_pdf')}</span>
+                <span className="hidden sm:inline">{t('download_pdf')}</span>
+                <span className="sm:hidden">PDF</span>
               </>
             )}
           </button>
