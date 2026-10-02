@@ -1,5 +1,15 @@
-import jsPDF from 'jspdf';
+import jsPDFImport, { jsPDF as jsPDFNamed } from 'jspdf';
 import html2canvas from 'html2canvas';
+
+// Robust constructor resolution for jsPDF across both ESM and CommonJS bundles
+const JsPdfConstructor: any =
+  typeof jsPDFNamed === 'function'
+    ? jsPDFNamed
+    : typeof jsPDFImport === 'function'
+    ? jsPDFImport
+    : (jsPDFImport as any)?.default && typeof (jsPDFImport as any).default === 'function'
+    ? (jsPDFImport as any).default
+    : (jsPDFImport as any)?.jsPDF;
 
 export function printDocument(): void {
   const scaleWrapper = document.getElementById('document-scale-wrapper');
@@ -18,7 +28,7 @@ export function printDocument(): void {
 
 /**
  * Converts the vector DOM document into a high-resolution pixelated raster PDF file
- * and triggers immediate download.
+ * and triggers immediate download to the user's device.
  */
 export async function exportToPdf(elementId: string, filename: string): Promise<boolean> {
   const source = document.getElementById(elementId);
@@ -27,17 +37,24 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
     return false;
   }
 
-  // Check if source is currently in a display:none container (e.g. mobile editor view)
-  const isHidden = source.offsetParent === null || source.offsetWidth === 0;
-
-  let targetElement: HTMLElement = source;
-  let tempContainer: HTMLElement | null = null;
+  // 1. Temporarily unscale the wrapper so the element is rendered at 100% natural resolution (794px width)
   const scaleWrapper = document.getElementById('document-scale-wrapper');
   const prevTransform = scaleWrapper ? scaleWrapper.style.transform : '';
   const prevTransition = scaleWrapper ? scaleWrapper.style.transition : '';
 
+  if (scaleWrapper) {
+    scaleWrapper.style.transition = 'none';
+    scaleWrapper.style.transform = 'none';
+    // Force DOM reflow to synchronously apply unscaled layout
+    void scaleWrapper.offsetHeight;
+  }
+
+  // Check if source is hidden (e.g. mobile editor view)
+  const isHidden = source.offsetParent === null || source.offsetWidth === 0;
+  let targetElement: HTMLElement = source;
+  let tempContainer: HTMLElement | null = null;
+
   if (isHidden) {
-    // If hidden on mobile, render an exact 1:1 container at (0, 0) behind viewport
     tempContainer = document.createElement('div');
     tempContainer.style.cssText = `
       position: fixed !important;
@@ -59,12 +76,6 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
     tempContainer.appendChild(clone);
     document.body.appendChild(tempContainer);
     targetElement = clone;
-  } else {
-    // Source is on screen: unscale wrapper for high-res 1:1 pixelated capture
-    if (scaleWrapper) {
-      scaleWrapper.style.transform = 'none';
-      scaleWrapper.style.transition = 'none';
-    }
   }
 
   try {
@@ -72,29 +83,32 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
       await document.fonts.ready;
     }
 
-    // Convert vector DOM into a crisp high-resolution pixelated raster canvas (2x density)
+    // 2. High-resolution pixelated rasterization (2x scale for sharp, high-DPI graphics)
     const canvas = await html2canvas(targetElement, {
-      scale: 2.0, // 2x high-resolution pixel density (1588px wide for 794px A4)
+      scale: 2.0, // High-resolution pixel density (1588px wide for 794px A4)
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
       imageTimeout: 15000,
+      scrollX: 0,
+      scrollY: 0,
     });
 
-    // Cleanup temporary offscreen container or restore scale
+    // Cleanup temporary elements / restore scale wrapper
     if (tempContainer && tempContainer.parentNode) {
       document.body.removeChild(tempContainer);
     }
-    if (scaleWrapper && !isHidden) {
+    if (scaleWrapper) {
       scaleWrapper.style.transform = prevTransform;
       scaleWrapper.style.transition = prevTransition;
     }
 
-    // Convert high-resolution pixelated canvas into JPEG image data
+    // 3. Convert high-resolution pixelated canvas into JPEG image data
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
 
-    const pdf = new jsPDF({
+    // 4. Instantiate jsPDF using robust constructor
+    const pdf = new JsPdfConstructor({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
@@ -108,11 +122,11 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
     let heightLeft = imgHeight;
     let position = 0;
 
-    // First page: render high-resolution pixelated result
+    // First page
     pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight, undefined, 'FAST');
     heightLeft -= pdfHeight;
 
-    // Multi-page pagination if content exceeds 1 page
+    // Multi-page pagination if content exceeds 1 A4 page
     while (heightLeft > 5) {
       position = heightLeft - imgHeight;
       pdf.addPage();
@@ -122,32 +136,38 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
 
     const safeFilename = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
 
-    // Download via direct Blob URL link
-    let downloaded = false;
+    // 5. Trigger download using official pdf.save()
+    let downloadSucceeded = false;
     try {
-      const pdfBlob = pdf.output('blob');
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.href = blobUrl;
-      downloadAnchor.download = safeFilename;
-      downloadAnchor.rel = 'noopener';
-      downloadAnchor.style.display = 'none';
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloaded = true;
-
-      setTimeout(() => {
-        if (downloadAnchor.parentNode) {
-          document.body.removeChild(downloadAnchor);
-        }
-        URL.revokeObjectURL(blobUrl);
-      }, 2500);
-    } catch {
-      // Fallback to pdf.save
+      pdf.save(safeFilename);
+      downloadSucceeded = true;
+    } catch (saveErr) {
+      console.warn('pdf.save failed, falling back to direct blob anchor:', saveErr);
     }
 
-    if (!downloaded) {
-      pdf.save(safeFilename);
+    // Fallback if needed: direct anchor click
+    if (!downloadSucceeded) {
+      try {
+        const pdfBlob = pdf.output('blob');
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.href = blobUrl;
+        downloadAnchor.download = safeFilename;
+        downloadAnchor.rel = 'noopener';
+        downloadAnchor.style.display = 'none';
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadSucceeded = true;
+
+        setTimeout(() => {
+          if (downloadAnchor.parentNode) {
+            document.body.removeChild(downloadAnchor);
+          }
+          URL.revokeObjectURL(blobUrl);
+        }, 2500);
+      } catch (anchorErr) {
+        console.error('All download methods failed:', anchorErr);
+      }
     }
 
     return true;
@@ -156,7 +176,7 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
     if (tempContainer && tempContainer.parentNode) {
       document.body.removeChild(tempContainer);
     }
-    if (scaleWrapper && !isHidden) {
+    if (scaleWrapper) {
       scaleWrapper.style.transform = prevTransform;
       scaleWrapper.style.transition = prevTransition;
     }
