@@ -9,10 +9,15 @@ function html2canvasOklchPlugin(): Plugin {
     enforce: 'pre',
     transform(code: string, id: string) {
       if (id.includes('html2canvas')) {
-        return code.replace(
-          /throw new Error\s*\(\s*["']Attempting to parse an unsupported color function[^"']*["']\s*\);?/g,
-          'return 0x0f172aff;'
-        );
+        return code
+          .replace(
+            /throw new Error\s*\(\s*["']Attempting to parse an unsupported color function[^)]*\);?/g,
+            'return 0x0f172aff;'
+          )
+          .replace(
+            /throw new Error\s*\(\s*["']Unsupported color[^)]*\);?/g,
+            'return 0x0f172aff;'
+          );
       }
       return null;
     },

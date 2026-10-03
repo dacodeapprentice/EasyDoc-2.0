@@ -83,6 +83,32 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
       await document.fonts.ready;
     }
 
+    // Helper to convert modern CSS color functions (oklch, oklab) to standard rgba
+    const oklchToRgba = (colorStr: string): string => {
+      if (!colorStr || (!colorStr.includes('oklch') && !colorStr.includes('oklab'))) return colorStr;
+      try {
+        const c = document.createElement('canvas');
+        c.width = 1;
+        c.height = 1;
+        const ctx = c.getContext('2d');
+        if (!ctx) return '#0f172a';
+        ctx.fillStyle = '#0f172a';
+        ctx.fillStyle = colorStr;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+        return `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`;
+      } catch {
+        return '#0f172a';
+      }
+    };
+
+    const sanitizeOklch = (val: string): string => {
+      if (!val || (!val.includes('oklch') && !val.includes('oklab'))) return val;
+      return val
+        .replace(/oklch\([^)]+\)/gi, (m) => oklchToRgba(m))
+        .replace(/oklab\([^)]+\)/gi, (m) => oklchToRgba(m));
+    };
+
     // 2. High-resolution pixelated rasterization (2x scale for sharp, high-DPI graphics)
     const canvas = await html2canvas(targetElement, {
       scale: 2.0, // High-resolution pixel density (1588px wide for 794px A4)
@@ -93,6 +119,31 @@ export async function exportToPdf(elementId: string, filename: string): Promise<
       imageTimeout: 15000,
       scrollX: 0,
       scrollY: 0,
+      onclone: (clonedDoc: Document, clonedEl: HTMLElement) => {
+        // Sanitize styles in cloned document
+        const styleTags = clonedDoc.querySelectorAll('style');
+        styleTags.forEach((tag) => {
+          if (tag.textContent && (tag.textContent.includes('oklch') || tag.textContent.includes('oklab'))) {
+            tag.textContent = sanitizeOklch(tag.textContent);
+          }
+        });
+
+        // Sanitize any elements with oklch in clonedEl
+        const allNodes = clonedEl.querySelectorAll('*');
+        allNodes.forEach((node) => {
+          const el = node as HTMLElement;
+          if (el.style) {
+            const props = ['color', 'backgroundColor', 'borderColor', 'outlineColor', 'boxShadow'];
+            props.forEach((prop) => {
+              const val = (el.style as any)[prop];
+              if (val && typeof val === 'string' && (val.includes('oklch') || val.includes('oklab'))) {
+                const kebab = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+                el.style.setProperty(kebab, sanitizeOklch(val), 'important');
+              }
+            });
+          }
+        });
+      },
     });
 
     // Cleanup temporary elements / restore scale wrapper
